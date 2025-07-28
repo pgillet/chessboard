@@ -1457,7 +1457,7 @@
                        movershift=1ex,
                        showevalbar=false,
                        evalbarpos=left,
-                       evalbarwidth=0.8em,
+                       evalbarwidth=0.2em,
                        showevaltext=false
                        }%
 
@@ -2982,19 +2982,19 @@
 %% Eval bar Keys
 %%%
 \define@boolkey[UFCB]{locset}{showevalbar}[true]{}
-\define@boolkey[UFCB]{locfill}{showevalbar}[true]{}
+\define@boolkey[UFCB]{gloset}{showevalbar}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevalbar=#1}{}}
 
 \define@choicekey*[UFCB]{locset}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
-\define@choicekey*[UFCB]{locfill}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
+\define@key[UFCB]{gloset}{evalbarpos}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarpos=#1}}
 
 \define@key[UFCB]{locset}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
-\define@key[UFCB]{locfill}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
+\define@key[UFCB]{gloset}{evalbarwidth}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarwidth=#1}{}}
 
 \define@boolkey[UFCB]{locset}{showevaltext}[true]{}
-\define@boolkey[UFCB]{locfill}{showevaltext}[true]{}
+\define@boolkey[UFCB]{gloset}{showevaltext}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevaltext=#1}{}}
 
-\define@key[UFCB]{locset}{eval}{\def\board@val@eval{#1}}
 \define@key[UFCB]{locfill}{eval}{\def\board@val@eval{#1}}
+\define@key[UFCB]{glofill}{eval}{\board@do@l@addto@macro\board@val@savedkeylist{,eval=#1}{}}
 
 %%%%
 %% font
