@@ -26,7 +26,7 @@
 \fi
 
 \RequirePackage{chessfss}[2006/03/31]
-
+\RequirePackage{array}
 
 \RequirePackage{xkeyval}%
 \RequirePackage{xifthen}%
@@ -1048,6 +1048,39 @@
      \setrmkeys*[UFCB]{gloset}%
      \setrmkeys[UFCB]{glofill}}%
 
+\newcommand\board@print@evalbar{%
+  \newdimen\board@ranksheight
+  \setlength{\board@ranksheight}{\numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax\len@cfss@squaretotalheight}%
+  \newdimen\white@fill@height
+  \pgfmathsetmacro{\eval@ratio}{(50 + \board@val@eval * 5) / 100}%
+  \setlength{\white@fill@height}{\eval@ratio\board@ranksheight}%
+  \newdimen\bar@horizontal@pos
+  \ifx\board@val@evalbarpos\board@val@left
+    \setlength{\bar@horizontal@pos}{\dimexpr-\board@val@evalbarwidth-0.5em\relax}%
+    \ifUFCB@locset@labelleft\addtolength{\bar@horizontal@pos}{-\board@val@labelleftwidth}\fi
+  \else
+    \setlength{\bar@horizontal@pos}{\dimexpr\numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax\len@cfss@squarewidth+0.5em\relax}%
+  \fi
+  \raisebox{0pt}[\board@ranksheight][0pt]{%
+    \makebox[0pt][l]{%
+      \hspace*{\bar@horizontal@pos}%
+      \begin{tikzpicture}
+        \useasboundingbox (0,0) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+        \cfss@whitepiececolor
+        \fill (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
+        \cfss@blackpiececolor
+        \fill (0,\white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+        \board@val@borderbottomcolor
+        \draw[line width=\board@val@borderbottomwidth] (0,0) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+        \ifUFCB@locset@showevaltext
+            \pgfmathparse{\board@val@eval > 0 ? "+": ""}\let\sign\pgfmathresult
+            \node[anchor=south, text=black, inner sep=1pt] at (0.5\board@val@evalbarwidth, \board@ranksheight) {\cfss@sidefont\selectfont \sign\board@val@eval};
+        \fi
+      \end{tikzpicture}%
+    }%
+  }%
+}
+
 \newcommand\chessboard[1][]{%
  \begingroup
   \normallineskip=1pt\relax\normallineskiplimit=0pt\relax%14.3.2011
@@ -1200,6 +1233,10 @@
     \fi
     \board@do@printbottommover%
     \board@do@printtopmover
+   \fi
+ %% Eval Bar
+   \ifUFCB@locset@showevalbar
+     \board@print@evalbar
    \fi
  %%
    \ifUFCB@locset@marginbottom
@@ -1418,6 +1455,10 @@
                        moverstyle=square,
                        moverlift=0pt,
                        movershift=1ex,
+                       showevalbar=false,
+                       evalbarpos=left,
+                       evalbarwidth=0.8em,
+                       showevaltext=false
                        }%
 
 \def\board@pgf@linewidth{0.1em}
@@ -1431,7 +1472,7 @@
 \def\board@pgf@padding{0pt}
 \setkeys[UFCB]{bez}{x1=1/3,x2=2/3,y1=1,y2=1,clockwise}
 \def\currentfontcolors{\board@val@fontcolorstack}
-\setkeys*[UFCB]{glofill}{language=english,trimtocolor=false,trimarea=\board,trim,usepgf=all,pgfstyle=none}%
+\setkeys*[UFCB]{glofill}{language=english,trimtocolor=false,trimarea=\board,trim,usepgf=all,pgfstyle=none,eval=0}%
 \board@do@setsinglekeys*[UFCB]{locfill}{language=english}%
 
 %</chessboard>
@@ -2936,6 +2977,24 @@
 \define@key[UFCB]{gloset}{bordercolor}{% D
   \board@do@setsinglekeys*[UFCB]{gloset}{%
     borderleftcolor=#1, borderrightcolor=#1, bordertopcolor=#1, borderbottomcolor=#1}}
+
+%%%
+%% Eval bar Keys
+%%%
+\define@boolkey[UFCB]{locset}{showevalbar}[true]{}
+\define@boolkey[UFCB]{locfill}{showevalbar}[true]{}
+
+\define@choicekey*[UFCB]{locset}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
+\define@choicekey*[UFCB]{locfill}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
+
+\define@key[UFCB]{locset}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
+\define@key[UFCB]{locfill}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
+
+\define@boolkey[UFCB]{locset}{showevaltext}[true]{}
+\define@boolkey[UFCB]{locfill}{showevaltext}[true]{}
+
+\define@key[UFCB]{locset}{eval}{\def\board@val@eval{#1}}
+\define@key[UFCB]{locfill}{eval}{\def\board@val@eval{#1}}
 
 %%%%
 %% font
