@@ -26,7 +26,7 @@
 \fi
 
 \RequirePackage{chessfss}[2006/03/31]
-\RequirePackage{array}
+
 
 \RequirePackage{xkeyval}%
 \RequirePackage{xifthen}%
@@ -366,6 +366,20 @@
    {}%
    {\def\board@val@fullmove{#6}}%
     }%
+
+%%%
+%% Eval bar Keys
+%%%
+\define@boolkey[UFCB]{locset}{showevalbar}[true]{}
+\define@boolkey[UFCB]{gloset}{showevalbar}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevalbar=#1}{}}
+\define@choicekey*[UFCB]{locset}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
+\define@key[UFCB]{gloset}{evalbarpos}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarpos=#1}}
+\define@key[UFCB]{locset}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
+\define@key[UFCB]{gloset}{evalbarwidth}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarwidth=#1}{}}
+\define@boolkey[UFCB]{locset}{showevaltext}[true]{}
+\define@boolkey[UFCB]{gloset}{showevaltext}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevaltext=#1}{}}
+\define@key[UFCB]{locfill}{eval}{\def\board@val@eval{#1}}
+\define@key[UFCB]{glofill}{eval}{\board@do@l@addto@macro\board@val@savedkeylist{,eval=#1}{}}
 
 \input{chessboard-keys-main.sty}%
 \input{chessboard-keys-pgf.sty}%
@@ -1006,6 +1020,51 @@
        \relax}%
      }}}
 
+\newcommand\board@draw@baronly{%
+  \newdimen\board@ranksheight
+  \setlength{\board@ranksheight}{\numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax\len@cfss@squaretotalheight}%
+  \newdimen\white@fill@height
+  \pgfmathsetmacro{\eval@ratio}{(50 + \board@val@eval * 5) / 100}%
+  \setlength{\white@fill@height}{\eval@ratio\board@ranksheight}%
+  \newdimen\board@boxwidth
+  \setlength{\board@boxwidth}{\numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax\len@cfss@squarewidth}%
+  \newdimen\bar@horizontal@pos
+  \ifthenelse{\equal{\board@val@evalbarpos}{left}}%
+  {% Position LEFT
+    \setlength{\bar@horizontal@pos}{\dimexpr-\board@val@evalbarwidth-\board@val@borderleftwidth\relax}%
+  }
+  {% Position RIGHT
+    \setlength{\bar@horizontal@pos}{\dimexpr\board@boxwidth+\board@val@borderrightwidth\relax}%
+  }
+  \raisebox{0pt}[0pt][0pt]{%
+    \makebox[0pt][r]{%
+      \hspace*{\bar@horizontal@pos}%
+      \begin{tikzpicture}
+        \useasboundingbox (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
+
+        % --- START: New Color Logic ---
+        \cfss@whitepiececolor\colorlet{currentwhite}{.}%
+        \cfss@blackpiececolor\colorlet{currentblack}{.}%
+
+        % Calculate color intensity based on score. A score of 5.0 = 100% intensity.
+        \pgfmathsetmacro{\whitestrength}{min(100, max(0, \board@val@eval) / 5 * 100)}
+        \pgfmathsetmacro{\blackstrength}{min(100, abs(min(0, \board@val@eval)) / 5 * 100)}
+
+        % Mix player color with neutral gray based on intensity
+        \fill[currentwhite!\whitestrength!gray] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
+        \fill[currentblack!\blackstrength!gray] (0,\white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+        % --- END: New Color Logic ---
+
+        \board@val@borderbottomcolor
+        \draw[line width=\board@val@borderbottomwidth] (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
+        \ifUFCB@locset@showevaltext
+            \pgfmathparse{\board@val@eval > 0 ? "+": ""}\let\sign\pgfmathresult
+            \node[anchor=south, text=black, inner sep=2pt, font=\cfss@sidefont\selectfont] at (0.5\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi) {\sign\board@val@eval};
+        \fi
+      \end{tikzpicture}%
+  }}%
+}
+
 \newcommand\board@do@setpsnode{%
   \ifpdf\else
    \ifUFCB@locset@psset
@@ -1047,39 +1106,6 @@
      \board@temp@command
      \setrmkeys*[UFCB]{gloset}%
      \setrmkeys[UFCB]{glofill}}%
-
-\newcommand\board@print@evalbar{%
-  \newdimen\board@ranksheight
-  \setlength{\board@ranksheight}{\numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax\len@cfss@squaretotalheight}%
-  \newdimen\white@fill@height
-  \pgfmathsetmacro{\eval@ratio}{(50 + \board@val@eval * 5) / 100}%
-  \setlength{\white@fill@height}{\eval@ratio\board@ranksheight}%
-  \newdimen\bar@horizontal@pos
-  \ifx\board@val@evalbarpos\board@val@left
-    \setlength{\bar@horizontal@pos}{\dimexpr-\board@val@evalbarwidth-0.5em\relax}%
-    \ifUFCB@locset@labelleft\addtolength{\bar@horizontal@pos}{-\board@val@labelleftwidth}\fi
-  \else
-    \setlength{\bar@horizontal@pos}{\dimexpr\numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax\len@cfss@squarewidth+0.5em\relax}%
-  \fi
-  \raisebox{0pt}[\board@ranksheight][0pt]{%
-    \makebox[0pt][l]{%
-      \hspace*{\bar@horizontal@pos}%
-      \begin{tikzpicture}
-        \useasboundingbox (0,0) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-        \cfss@whitepiececolor
-        \fill (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
-        \cfss@blackpiececolor
-        \fill (0,\white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-        \board@val@borderbottomcolor
-        \draw[line width=\board@val@borderbottomwidth] (0,0) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-        \ifUFCB@locset@showevaltext
-            \pgfmathparse{\board@val@eval > 0 ? "+": ""}\let\sign\pgfmathresult
-            \node[anchor=south, text=black, inner sep=1pt] at (0.5\board@val@evalbarwidth, \board@ranksheight) {\cfss@sidefont\selectfont \sign\board@val@eval};
-        \fi
-      \end{tikzpicture}%
-    }%
-  }%
-}
 
 \newcommand\chessboard[1][]{%
  \begingroup
@@ -1221,6 +1247,7 @@
  % Border
  %%%
    \board@print@border
+   \ifUFCB@locset@showevalbar\board@draw@baronly\fi
  %% Mover
    \ifUFCB@locset@showmover
     \ifcsname board@val@moverstyle@\board@val@moverstyle\endcsname
@@ -1233,10 +1260,6 @@
     \fi
     \board@do@printbottommover%
     \board@do@printtopmover
-   \fi
- %% Eval Bar
-   \ifUFCB@locset@showevalbar
-     \board@print@evalbar
    \fi
  %%
    \ifUFCB@locset@marginbottom
@@ -2977,24 +3000,6 @@
 \define@key[UFCB]{gloset}{bordercolor}{% D
   \board@do@setsinglekeys*[UFCB]{gloset}{%
     borderleftcolor=#1, borderrightcolor=#1, bordertopcolor=#1, borderbottomcolor=#1}}
-
-%%%
-%% Eval bar Keys
-%%%
-\define@boolkey[UFCB]{locset}{showevalbar}[true]{}
-\define@boolkey[UFCB]{gloset}{showevalbar}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevalbar=#1}{}}
-
-\define@choicekey*[UFCB]{locset}{evalbarpos}[\board@val@evalbarpos]{left,right}[left]{}
-\define@key[UFCB]{gloset}{evalbarpos}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarpos=#1}}
-
-\define@key[UFCB]{locset}{evalbarwidth}{\def\board@val@evalbarwidth{#1}}
-\define@key[UFCB]{gloset}{evalbarwidth}{\board@do@l@addto@macro\board@val@savedkeylist{,evalbarwidth=#1}{}}
-
-\define@boolkey[UFCB]{locset}{showevaltext}[true]{}
-\define@boolkey[UFCB]{gloset}{showevaltext}[true]{\board@do@l@addto@macro\board@val@savedkeylist{,showevaltext=#1}{}}
-
-\define@key[UFCB]{locfill}{eval}{\def\board@val@eval{#1}}
-\define@key[UFCB]{glofill}{eval}{\board@do@l@addto@macro\board@val@savedkeylist{,eval=#1}{}}
 
 %%%%
 %% font
