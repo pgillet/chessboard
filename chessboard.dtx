@@ -1091,7 +1091,7 @@
           % Orientation: default top=black, bottom=white; if inverse=true → top=white, bottom=black
           \ifUFCB@locset@inverse
             % bottom: solid black
-            \fill[fill=black, draw=black, line width=1pt]
+            \fill[fill=black, draw=none]
               (0,0) rectangle (\board@val@evalbarwidth,\cb@whiteTopStart);
 
             % top: white fill with black outline
@@ -1104,7 +1104,7 @@
               (0,0) rectangle (\board@val@evalbarwidth,\white@fill@height);
 
             % top: solid black
-            \fill[fill=black, draw=black, line width=1pt]
+            \fill[fill=black, draw=none]
               (0,\white@fill@height) rectangle (\board@val@evalbarwidth,\board@ranksheight);
           \fi
 
