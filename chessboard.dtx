@@ -1024,7 +1024,8 @@
   \newdimen\board@ranksheight
   \setlength{\board@ranksheight}{\numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax\len@cfss@squaretotalheight}%
   \newdimen\white@fill@height
-  \pgfmathsetmacro{\eval@ratio}{(50 + \board@val@eval * 5) / 100}%
+  % Clamp the evaluation ratio to be between 0 and 1
+  \pgfmathsetmacro{\eval@ratio}{max(0, min(1, (50 + \board@val@eval * 5) / 100))}%
   \setlength{\white@fill@height}{\eval@ratio\board@ranksheight}%
   \newdimen\board@boxwidth
   \setlength{\board@boxwidth}{\numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax\len@cfss@squarewidth}%
@@ -1042,18 +1043,20 @@
       \begin{tikzpicture}
         \useasboundingbox (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
 
-        % --- START: New Color Logic ---
+        % --- START: Modified Color Logic ---
         \cfss@whitepiececolor\colorlet{currentwhite}{.}%
         \cfss@blackpiececolor\colorlet{currentblack}{.}%
 
-        % Calculate color intensity based on score. A score of 5.0 = 100% intensity.
-        \pgfmathsetmacro{\whitestrength}{min(100, max(0, \board@val@eval) / 5 * 100)}
-        \pgfmathsetmacro{\blackstrength}{min(100, abs(min(0, \board@val@eval)) / 5 * 100)}
-
-        % Mix player color with neutral gray based on intensity
-        \fill[currentwhite!\whitestrength!gray] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
-        \fill[currentblack!\blackstrength!gray] (0,\white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-        % --- END: New Color Logic ---
+        \ifUFCB@locset@inverse
+            % Inverted board: white color on top, black color on bottom
+            \fill[currentwhite] (0, \white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+            \fill[currentblack] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
+        \else
+            % Normal board: black color on top, white color on bottom
+            \fill[currentblack] (0, \white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
+            \fill[currentwhite] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
+        \fi
+        % --- END: Modified Color Logic ---
 
         \board@val@borderbottomcolor
         \draw[line width=\board@val@borderbottomwidth] (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
@@ -1480,7 +1483,7 @@
                        movershift=1ex,
                        showevalbar=false,
                        evalbarpos=left,
-                       evalbarwidth=0.2em,
+                       evalbarwidth=0.3em,
                        showevaltext=false
                        }%
 
