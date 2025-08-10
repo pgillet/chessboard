@@ -381,6 +381,16 @@
 \define@key[UFCB]{locfill}{eval}{\def\board@val@eval{#1}}
 \define@key[UFCB]{glofill}{eval}{\board@do@l@addto@macro\board@val@savedkeylist{,eval=#1}{}}
 
+% --- Eval bar saturation control (±pawns); default = 10 pawns
+\providecommand\board@val@evalmaxpawns{10}
+
+\define@key[UFCB]{locset}{evalmaxpawns}{%
+  \def\board@val@evalmaxpawns{#1}%
+}
+\define@key[UFCB]{gloset}{evalmaxpawns}{%
+  \board@do@l@addto@macro\board@val@savedkeylist{,evalmaxpawns=#1}{}%
+}
+
 \input{chessboard-keys-main.sty}%
 \input{chessboard-keys-pgf.sty}%
 \input{chessboard-pgf.sty}
@@ -1020,52 +1030,99 @@
        \relax}%
      }}}
 
-\newcommand\board@draw@baronly{%
+% Working registers
+\newdimen\cb@borderbottom
+\newdimen\cb@bordertop
+\newdimen\cb@ymin
+\newdimen\cb@ymax
+\newdimen\cb@halfx
+\newdimen\cb@whiteTopStart
+
+\def\board@draw@baronly{%
+  % ---- sizes ----
   \newdimen\board@ranksheight
-  \setlength{\board@ranksheight}{\numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax\len@cfss@squaretotalheight}%
+  \setlength{\board@ranksheight}{%
+    \numexpr\board@val@startprintranknum-\board@val@stopprintranknum+1\relax
+    \len@cfss@squaretotalheight
+  }%
   \newdimen\white@fill@height
-  % Clamp the evaluation ratio to be between 0 and 1
-  \pgfmathsetmacro{\eval@ratio}{max(0, min(1, (50 + \board@val@eval * 5) / 100))}%
-  \setlength{\white@fill@height}{\eval@ratio\board@ranksheight}%
+
+  % ---- eval -> white fraction (0..1) ----
+  \edef\cb@evalraw{\board@val@eval}%
+  \in@{M}{\cb@evalraw}%
+  \ifin@
+    % Mate strings: -Mx => 0 (all black), Mx => 1 (all white)
+    \in@{-}{\cb@evalraw}\ifin@\def\cb@ratio{0}\else\def\cb@ratio{1}\fi
+  \else
+    % Numeric: treat as pawns unless |n|>20 (then centipawns)
+    \pgfmathsetmacro{\cb@n}{\board@val@eval}%
+    \pgfmathsetmacro{\cb@pawns}{abs(\cb@n)>20 ? \cb@n/100.0 : \cb@n}%
+    \pgfmathsetmacro{\cb@maxp}{\board@val@evalmaxpawns}%
+    \pgfmathsetmacro{\cb@ratio}{(\cb@pawns+\cb@maxp)/(2*\cb@maxp)}%
+    \pgfmathsetmacro{\cb@ratio}{max(0, min(1, \cb@ratio))}%
+  \fi
+  \pgfmathsetlength{\white@fill@height}{\cb@ratio*\board@ranksheight}%
+
+  % ---- geometry (precompute ALL dims; do NOT do math inside tikz coords) ----
   \newdimen\board@boxwidth
-  \setlength{\board@boxwidth}{\numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax\len@cfss@squarewidth}%
+  \setlength{\board@boxwidth}{%
+    \numexpr\board@val@stopprintfilenum-\board@val@startprintfilenum+1\relax
+    \len@cfss@squarewidth
+  }%
   \newdimen\bar@horizontal@pos
   \ifthenelse{\equal{\board@val@evalbarpos}{left}}%
-  {% Position LEFT
-    \setlength{\bar@horizontal@pos}{\dimexpr-\board@val@evalbarwidth-\board@val@borderleftwidth\relax}%
-  }
-  {% Position RIGHT
-    \setlength{\bar@horizontal@pos}{\dimexpr\board@boxwidth+\board@val@borderrightwidth\relax}%
-  }
-  \raisebox{0pt}[0pt][0pt]{%
-    \makebox[0pt][r]{%
-      \hspace*{\bar@horizontal@pos}%
-      \begin{tikzpicture}
-        \useasboundingbox (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
+    {\setlength{\bar@horizontal@pos}{\dimexpr-\board@val@evalbarwidth-\board@val@borderleftwidth\relax}}%
+    {\setlength{\bar@horizontal@pos}{\dimexpr\board@boxwidth+\board@val@borderrightwidth\relax}}%
 
-        % --- START: Modified Color Logic ---
-        \cfss@whitepiececolor\colorlet{currentwhite}{.}%
-        \cfss@blackpiececolor\colorlet{currentblack}{.}%
+  \cb@borderbottom=\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi
+  \cb@bordertop=\ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi
+  \cb@ymin=\dimexpr -\cb@borderbottom\relax
+  \cb@ymax=\dimexpr \board@ranksheight+\cb@bordertop\relax
+  \pgfmathsetlength{\cb@halfx}{0.5*\board@val@evalbarwidth}%
+  \cb@whiteTopStart=\dimexpr \board@ranksheight-\white@fill@height\relax
 
-        \ifUFCB@locset@inverse
-            % Inverted board: white color on top, black color on bottom
-            \fill[currentwhite] (0, \white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-            \fill[currentblack] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
-        \else
-            % Normal board: black color on top, white color on bottom
-            \fill[currentblack] (0, \white@fill@height) rectangle (\board@val@evalbarwidth, \board@ranksheight);
-            \fill[currentwhite] (0,0) rectangle (\board@val@evalbarwidth, \white@fill@height);
-        \fi
-        % --- END: Modified Color Logic ---
+  % ---- draw ----
+  \ifUFCB@locset@pgf
+    \makebox[0pt]{%
+      \begin{tikzpicture}[x=1pt,y=1pt]
+        \begin{scope}[xshift=\bar@horizontal@pos]
+          \clip (0,\cb@ymin) rectangle (\board@val@evalbarwidth,\cb@ymax);
 
-        \board@val@borderbottomcolor
-        \draw[line width=\board@val@borderbottomwidth] (0, -\ifUFCB@locset@borderbottom\board@val@borderbottomwidth\else 0pt\fi) rectangle (\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi);
-        \ifUFCB@locset@showevaltext
-            \pgfmathparse{\board@val@eval > 0 ? "+": ""}\let\sign\pgfmathresult
-            \node[anchor=south, text=black, inner sep=2pt, font=\cfss@sidefont\selectfont] at (0.5\board@val@evalbarwidth, \board@ranksheight + \ifUFCB@locset@bordertop\board@val@bordertopwidth\else 0pt\fi) {\sign\board@val@eval};
-        \fi
+          % Orientation: default top=black, bottom=white; if inverse=true → top=white, bottom=black
+          \ifUFCB@locset@inverse
+            % bottom: solid black
+            \fill[fill=black, draw=black, line width=1pt]
+              (0,0) rectangle (\board@val@evalbarwidth,\cb@whiteTopStart);
+
+            % top: white fill with black outline
+            \fill[fill=white, draw=black, line width=1pt]
+              (0,\cb@whiteTopStart) rectangle (\board@val@evalbarwidth,\board@ranksheight);
+          \else
+            % top = black, bottom = white
+            % bottom: white fill with black outline
+            \fill[fill=white, draw=black, line width=1pt]
+              (0,0) rectangle (\board@val@evalbarwidth,\white@fill@height);
+
+            % top: solid black
+            \fill[fill=black, draw=black, line width=1pt]
+              (0,\white@fill@height) rectangle (\board@val@evalbarwidth,\board@ranksheight);
+          \fi
+
+          % Optional label
+          \ifUFCB@locset@showevaltext
+            \edef\cb@txt{\board@val@eval}%
+            \in@{M}{\cb@txt}\ifin@\def\cb@label{\cb@txt}\else
+              \pgfmathparse{\board@val@eval > 0 ? "+": ""}\let\cb@sign\pgfmathresult
+              \edef\cb@label{\cb@sign\board@val@eval}%
+            \fi
+            % Force a normal text font (avoid Skak diagram font)
+            \node[anchor=south, inner sep=2pt, font=\rmfamily\footnotesize]
+                 at (\cb@halfx,\cb@ymax) {\cb@label};
+          \fi
+        \end{scope}
       \end{tikzpicture}%
-  }}%
+    }%
+  \fi
 }
 
 \newcommand\board@do@setpsnode{%
